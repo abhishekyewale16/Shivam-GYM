@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="./assets/css/style.css">
+    <!-- Include SMTP.js -->
+    <script src="https://smtpjs.com/v3/smtp.js"></script>
+    <style>
+        /* Popup styling */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .popup {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 300px;
+        }
+
+        .popup .circular-loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .popup .tick-icon {
+            font-size: 80px;
+            color: #4CAF50;
+            margin: 20px auto;
+            display: none;
+        }
+
+        .popup .message1 {
+            font-size: 2.2rem;
+            color: #51c015;
+            margin-top: 15px;
+        }
+
+        .popup .message2 {
+            font-size: 1.8rem;
+            color: #333;
+            margin-top: 15px;
+        }
+
+        .popup .ok-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .popup .ok-button:hover {
+            background-color: #45a049;
+        }
+
+         /* Logout Button Positioning */
+         #back_btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: var(--coquelicot);
+            color: var(--white);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #back_btn:hover {
+            background-color: var(--rich-black-fogra-29-1);
+        }
+    </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+</head>
+<body>
+    <header>
+        <h1>Join Now</h1>
+    </header>
+    <main>
+        <!-- Logout Button -->
+        <div class="lbt">
+            <button id="back_btn">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+        </div>
+        <form id="registrationForm" class="registration-form" method="post">
+            <label for="name">Full Name:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="phone">Phone Number:</label>
+            <input type="tel" id="phone" name="phone" pattern="\d{10}" title="Enter a valid 10-digit phone number" required>
+
+            <label for="membership">Select Membership:</label>
+            <select id="membership" name="membership" required>
+                <option value="" disabled selected>Select a plan</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="halfyearly">Half Yearly</option>
+                <option value="yearly">Yearly</option>
+            </select>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        
+
+        <!-- Popup -->
+        <div id="popupOverlay" class="popup-overlay">
+            <div class="popup">
+                <div id="loader" class="circular-loader"></div>
+                <div id="tickIcon" class="tick-icon">✔</div>
+                <p id="popupMessage1" class="message1">Processing your request...</p>
+                <p id="popupMessage2" class="message2"></p>
+                <button id="okButton" class="ok-button" style="display: none;">OK</button>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        // Import Firebase functions
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDngDmvOT56r_0ZOtGfICQ_gEy8zo6_QUI",
+            authDomain: "shivam-gym-c8b54.firebaseapp.com",
+            projectId: "shivam-gym-c8b54",
+            storageBucket: "shivam-gym-c8b54.firebaseapp.com",
+            messagingSenderId: "298730795545",
+            appId: "1:298730795545:web:14971ef329126db2dcf088",
+            measurementId: "G-5S2CZR7CC7"
+        };
+
+        // Initialize Firebase and Firestore
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const form = document.getElementById('registrationForm');
+        const popupOverlay = document.getElementById('popupOverlay');
+        const loader = document.getElementById('loader');
+        const tickIcon = document.getElementById('tickIcon');
+        const popupMessage = document.getElementById('popupMessage');
+        const okButton = document.getElementById('okButton');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            // Show popup with loading state
+            popupOverlay.style.display = 'flex';
+            loader.style.display = 'block';
+            tickIcon.style.display = 'none';
+            popupMessage1.textContent = 'Processing your request...';
+            okButton.style.display = 'none';
+
+            // Collect form data
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const membership = document.getElementById('membership').value;
+
+            try {
+                // Add data to Firestore
+                // Generate a custom ID (e.g., using the current timestamp or any custom logic)
+                const customId = `GYM-${Math.floor(Math.random() * 90000) + 10000}`; // Example: GYM-12345
+
+                // Reference to the document with the custom ID
+                const docRef = doc(db, 'registrations', customId);
+
+                // Set data with the custom ID
+                await setDoc(docRef, {
+                    apt_id: customId,
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    membership: membership,
+                    timestamp: serverTimestamp()
+                });
+
+                // Update popup for success
+                loader.style.display = 'none';
+                tickIcon.style.display = 'block';
+                popupMessage1.textContent = `Successfull Registeration !`;
+                popupMessage2.textContent = `Registration ID: ${customId}`
+                okButton.style.display = 'block';
+            } catch (error) {
+                console.error('Error adding document:', error);
+                loader.style.display = 'none';
+                tickIcon.style.display = 'none';
+                popupMessage.textContent = 'Error: Registration Failed!';
+                okButton.style.display = 'block';
+            }
+        });
+
+        // OK button handler
+        okButton.addEventListener('click', () => {
+            popupOverlay.style.display = 'none';
+            popupMessage2.textContent = '';
+            form.reset();
+        });
+
+        //Back Button
+        document.getElementById('back_btn').addEventListener('click', () => {
+            window.location.href = "index.html";
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="./assets/css/style.css">
+    <style>
+        /* Appointments Section */
+        .containerT {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--white);
+            border-radius: var(--radius-10);
+            box-shadow: var(--shadow-1);
+            margin-top: 50px;
+            overflow: hidden;
+        }
+
+        .containerT h2 {
+            text-align: center;
+            color: var(--coquelicot);
+            font-family: var(--ff-catamaran);
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th, table td {
+            border: 1px solid var(--light-gray);
+            padding: 10px;
+            text-align: center;
+        }
+
+        table th {
+            background-color: var(--coquelicot_10);
+            color: var(--coquelicot);
+        }
+
+        /* Fix for table overflow */
+        .appointments-table-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            display: block;
+            margin-top: 10px;
+        }
+
+        /* Accept and Reject Buttons Styling */
+        .accept-btn, .reject-btn {
+            padding: 8px 12px;
+            border-radius: var(--radius-5);
+            font-size: var(--fs-6);
+            cursor: pointer;
+            margin: 0 10px; /* Added spacing between buttons */
+        }
+
+        .accept-btn {
+            background-color: #4CAF50;
+            color: var(--white);
+        }
+
+        .accept-btn:hover {
+            background-color: #45a049;
+        }
+
+        .reject-btn {
+            margin-top: 4px;
+            background-color: #f44336;
+            color: var(--white);
+        }
+
+        .reject-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        /* Loading Spinner (same as in register.html) */
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #loadingSpinner img {
+            width: 50px;
+            height: 50px;
+        }
+
+        /* Logout Button Positioning */
+        #logoutButton {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: var(--coquelicot);
+            color: var(--white);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #logoutButton:hover {
+            background-color: var(--rich-black-fogra-29-1);
+        }
+
+        /* Popup Styling */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .popup {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 350px;
+        }
+
+        .popup .message {
+            font-size: 1.8rem;
+            color: #000000;
+            margin-top: 15px;
+        }
+
+        .popup .ok-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            transition: background-color 0.3s ease;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .popup .ok-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <!-- Appointments Section -->
+    <div class="containerT" id="appointmentsSection">
+        <h2>Appointments</h2>
+        
+        <!-- Spinner (same as in register.html) -->
+        <div id="loadingSpinner">
+            <img src="https://i.gifer.com/ZZ5H.gif" alt="Loading...">
+        </div>
+        
+        <div class="appointments-table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Appointment ID</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Membership</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointmentsTableBody">
+                    <!-- Dynamic rows go here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Logout Button -->
+    <div class="lbt">
+        <button id="logoutButton">Logout</button>
+    </div>
+
+    <!-- Popup for Confirmation -->
+    <div id="popupOverlay" class="popup-overlay">
+        <div class="popup">
+            <p id="popupMessage" class="message"></p>
+            <button id="okButton" class="ok-button" style="display: none;">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase Initialization
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDngDmvOT56r_0ZOtGfICQ_gEy8zo6_QUI",
+            authDomain: "shivam-gym-c8b54.firebaseapp.com",
+            projectId: "shivam-gym-c8b54",
+            storageBucket: "shivam-gym-c8b54.firebaseapp.com",
+            messagingSenderId: "298730795545",
+            appId: "1:298730795545:web:14971ef329126db2dcf088",
+            measurementId: "G-5S2CZR7CC7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Admin credentials check from sessionStorage
+        const isAdminLoggedIn = sessionStorage.getItem("isAdminLoggedIn");
+        if (!isAdminLoggedIn) {
+            // Redirect to login page if not logged in
+            window.location.href = "admin_login.html";
+        }
+
+        const appointmentsSection = document.getElementById("appointmentsSection");
+        const appointmentsTableBody = document.getElementById("appointmentsTableBody");
+        const logoutButton = document.getElementById("logoutButton");
+        const loadingSpinner = document.getElementById("loadingSpinner");
+        const popupOverlay = document.getElementById('popupOverlay');
+        const popupMessage = document.getElementById('popupMessage');
+        const okButton = document.getElementById('okButton');
+
+       // Fetch appointments from Firestore
+        async function fetchAppointments() {
+            try {
+                loadingSpinner.style.display = "block";  // Show loading spinner
+                const querySnapshot = await getDocs(collection(db, "registrations"));
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const row = document.createElement("tr");
+
+                    row.innerHTML = `
+                        <td>${data.apt_id}</td>
+                        <td>${data.name}</td>
+                        <td>${data.email}</td>
+                        <td>${data.phone}</td>
+                        <td>${data.membership}</td>
+                        <td>${data.status || "Pending"}</td>
+                        <td>
+                            <button class="accept-btn" data-doc-id="${doc.id}" data-status="Accepted" aria-label="Accept appointment ${data.name}">Accept</button>
+                            <button class="reject-btn" data-doc-id="${doc.id}" data-status="Rejected" aria-label="Reject appointment ${data.name}">Reject</button>
+                        </td>
+                    `;
+
+                    appointmentsTableBody.appendChild(row);
+
+                    // Check the status of the appointment and disable/hide buttons if needed
+                    const acceptBtn = row.querySelector(".accept-btn");
+                    const rejectBtn = row.querySelector(".reject-btn");
+
+                    // Disable and hide buttons if appointment status is Accepted or Rejected
+                    if (data.status === "Accepted" || data.status === "Rejected") {
+                        acceptBtn.disabled = true;
+                        rejectBtn.disabled = true;
+                        acceptBtn.style.display = "none";
+                        rejectBtn.style.display = "none";
+                    }
+                });
+            } catch (error) {
+                alert("Error fetching appointments: " + error.message);
+            } finally {
+                loadingSpinner.style.display = "none";  // Hide loading spinner after data fetch
+            }
+        }
+
+        // Event listener for Accept/Reject buttons
+        document.addEventListener("click", function(event) {
+            if (event.target.classList.contains("accept-btn") || event.target.classList.contains("reject-btn")) {
+                const docId = event.target.getAttribute("data-doc-id");
+                const status = event.target.getAttribute("data-status");
+                const action = status === "Accepted" ? "accept" : "reject"; // Define action for confirmation
+                openConfirmationPopup(docId, status, action, event.target);
+            }
+        });
+
+        // Open confirmation popup
+        function openConfirmationPopup(docId, status, action, buttonElement) {
+            const actionText = action === "accept" ? "Accept" : "Reject"; // Get the action text based on the button clicked
+            popupMessage.textContent = `Are you sure you want to ${actionText} this appointment?`;
+            okButton.style.display = "block";
+
+            okButton.onclick = () => {
+                updateStatus(docId, status, buttonElement);
+            };
+
+            popupOverlay.style.display = 'flex';
+        }
+
+        // Update appointment status and disable buttons
+        async function updateStatus(id, status, buttonElement) {
+            const docRef = doc(db, "registrations", id);
+
+            try {
+                // Update the status in Firestore
+                await updateDoc(docRef, { status });
+
+                // Close the confirmation popup
+                popupOverlay.style.display = "none";
+
+                // Show success message on the popup
+                popupMessage.textContent = `Appointment marked as ${status}.`;
+                okButton.style.display = "none"; // Hide OK button
+
+                // Reload to fetch updated appointments
+                setTimeout(() => {
+                    location.reload(); // Reload to reflect the updated data
+                }, 2000);
+            } catch (error) {
+                alert("Error updating status: " + error.message);
+            }
+        }
+
+
+        // Logout functionality
+        logoutButton.addEventListener("click", () => {
+            sessionStorage.removeItem("isAdminLoggedIn");
+            window.location.href = "index.html"; // Redirect to index page
+        });
+
+        // Show the appointments after loading data
+        fetchAppointments();
+    </script>
+</body>
+</html>
